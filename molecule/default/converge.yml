@@ -1,0 +1,7 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Load the shared forwarding tasks
+      ansible.builtin.import_tasks: ../../tasks/forwarding.yml

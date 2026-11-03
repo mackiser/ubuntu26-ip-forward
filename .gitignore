@@ -1,0 +1,21 @@
+# Python virtualenv
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+
+# Ansible / Molecule ephemeral state
+.cache/
+.molecule/
+.ansible/
+
+# Throwaway manual-test inventory (molecule handles testing now)
+hosts.test.yml
+
+# macOS
+.DS_Store
+
+# Local secrets, just in case
+*.pem
+*.key
