@@ -34,29 +34,25 @@ when:
 > setting to the running kernel (that requires sysctl -p or a reboot). This
 > matches the original echo | tee approach it replaces.
 
-##  Prerequisites
-
-- Docker (running on macOS and set `DOCKER_HOST` to the socket - see below)
-- Python 3.9+
-- A virtualenv with `molecule`, `molecule-plugins[docker]`, `pytest`, `pytest-testinfra`
+## Quickstart
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install "molecule" "molecule-plugins[docker]" "pytest" "pytest-testinfra"
+# 1. Clone the repository (SSH URL)
+git clone git@gitlab.sysx.io:mckinleyk/ubuntu26-ip-forward.git
+cd ubuntu26-ip-forward
+
+# 2. Install `just` (one-time, system-wide)
+brew install just          # macOS
+# Linux: sudo apt install just
+
+# 3. Set up the virtualenv and dependencies (once per clone)
+just setup
+
+# 4. Run the test suite
+just test
 ```
 
-## Running the molecule test
-
-```bash
-# macOS only - point molecule at the Docker Desktop socket
-export DOCKER_HOST=unix:///Users/$USER/.docker/run/docker.sock
-
-molecule test
-```
-
-`molecule test` runs the full lifecycle:
+`just test` runs the full lifecycle:
 ```
 create → prepare → converge → idempotence → side_effect → verify → destroy
 ```
@@ -72,11 +68,31 @@ to both, asserts the correct end state on each, then tears everything down.
 ## Manual verification (optional)
 
 ```bash
-molecule converge     # create + apply, leave containers running
-molecule login        # shell into a container
+just converge         # create + apply, leave containers running
+just login [host]     # shell into ubuntu-24 or ubuntu-26 container
+
 # inside the container:
 cat /etc/sysctl.d/99-forwarding.conf
 ```
+
+## Available just commands
+
+This project uses [`just`](https://github.com/casey/just) to wrap the Molecule
+workflow. Run `just --list` to see everything, or use one of these:
+
+| Command | What it does |
+|---|---|
+| `just` / `just --list` | List the available commands. |
+| `just setup` | One-time setup: creates the virtualenv and installs Molecule and its dependencies. Run this once after cloning. |
+| `just test` | Runs the full test suite end to end — creates two throwaway containers (Ubuntu 26.04 and 24.04), applies the task, verifies the result, and tears everything down. No manual `source` or `DOCKER_HOST` needed. |
+| `just converge` | Creates the containers **and** applies the task, then leaves them running so you can inspect them. Use this before logging in. |
+| `just login ubuntu-26` | Shells into the Ubuntu 26.04 container (the default). |
+| `just login ubuntu-24` | Shells into the Ubuntu 24.04 container. |
+| `just destroy` | Tears down all test containers — Molecule's containers plus any leftover manual ones. |
+
+> **Tip:** To poke at a live container, run `just converge` first, then
+> `just login ubuntu-26`. Running `just login` on its own gives you a fresh,
+> empty container where the task hasn't been applied yet.
 
 ## Scope & limitations
 
@@ -89,5 +105,5 @@ should be confirmed on a real host before production use:
 - Real inventory — tests use Molecule's own inventory, not the production `hosts.yml`.
 
 ## Roadmap
-[] Convert the playbook into a reusable Ansible role
-[] Validate live kernal application on a real Ubuntu 26.04 host
+- [ ] Convert the playbook into a reusable Ansible role
+- [ ] Validate live kernal application on a real Ubuntu 26.04 host
