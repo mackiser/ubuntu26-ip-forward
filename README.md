@@ -1,93 +1,109 @@
 # ubuntu26-ip-forward
 
+Enable IPv4 forwarding (`net.ipv4.ip_forward = 1`) on **Ubuntu 26.04** hosts via
+Ansible, with a [Molecule](https://ansible.readthedocs.io/projects/molecule/)
+test suite that proves the behavior.
 
+## Background
 
-## Getting started
+On Ubuntu 26.04 the standard method used to apply certain `sysctl` directives
+stopped working for a subset of values. This project provides a small,
+self-contained Ansible task that writes `/etc/sysctl.d/99-forwarding.conf` to
+enable IP forwarding — but **only on Ubuntu 26.04**, so it's a no-op everywhere
+else.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+This is primarily intended for "project networks" that run nested tunnels and
+require `ip_forward` to function.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## How it works
 
-## Add your files
+The task uses `ansible.builtin.copy` to write the sysctl drop-in file, guarded
+by a `when:` clause that checks the gathered Ansible facts:
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
+```yaml
+when:
+  - ansible_facts['os_family'] == 'Debian'
+  - ansible_facts['distribution'] == 'Ubuntu'
+  - ansible_facts['distribution_major_version'] == '26'
 ```
-cd existing_repo
-git remote add origin https://gitlab.sysx.io/mckinleyk/ubuntu26-ip-forward.git
-git branch -M main
-git push -uf origin main
+- The file is written to `/etc/sysctl.d/99-forwarding.conf` -- the `99-` prefix ensures it's applied last, overriding earlier drop-ins.
+- The task is idempotent - `copy` only rewrites thefile when content changes.
+- On any non-Ubuntu-26 host the task is skipped
+
+> Note: This writes the persistent config file only. It does not apply the
+> setting to the running kernel (that requires sysctl -p or a reboot). This
+> matches the original echo | tee approach it replaces.
+
+## Quickstart
+
+```bash
+# 1. Clone the repository (SSH URL)
+git clone git@gitlab.sysx.io:mckinleyk/ubuntu26-ip-forward.git
+cd ubuntu26-ip-forward
+
+# 2. Install `just` (one-time, system-wide)
+brew install just          # macOS
+# Linux: sudo apt install just
+
+# 3. Set up the virtualenv and dependencies (once per clone)
+just setup
+
+# 4. Run the test suite
+just test
 ```
 
-## Integrate with your tools
+`just test` runs the full lifecycle:
+```
+create → prepare → converge → idempotence → side_effect → verify → destroy
+```
+It spins up two throwaway containers (Ubuntu 26.04 and 24.04), applies the task
+to both, asserts the correct end state on each, then tears everything down.
 
-* [Set up project integrations](https://gitlab.sysx.io/mckinleyk/ubuntu26-ip-forward/-/settings/integrations)
+| STEP          | UBUNTU 26.04                             | UBUNTU 24.04   |
+|---------------|------------------------------------------|----------------|
+| `converge`    | task `changed` (file written)            | task `skipped` |
+| `idempotence` | re-run reports `changed: 0`              | --             |
+| `verify`      | fil exists, mode `0644`, content correct | file absent    |
 
-## Collaborate with your team
+## Manual verification (optional)
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+```bash
+just converge         # create + apply, leave containers running
+just login [host]     # shell into ubuntu-24 or ubuntu-26 container
 
-## Test and Deploy
+# inside the container:
+cat /etc/sysctl.d/99-forwarding.conf
+```
 
-Use the built-in continuous integration in GitLab.
+## Available just commands
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+This project uses [`just`](https://github.com/casey/just) to wrap the Molecule
+workflow. Run `just --list` to see everything, or use one of these:
 
-***
+| Command | What it does |
+|---|---|
+| `just` / `just --list` | List the available commands. |
+| `just setup` | One-time setup: creates the virtualenv and installs Molecule and its dependencies. Run this once after cloning. |
+| `just test` | Runs the full test suite end to end — creates two throwaway containers (Ubuntu 26.04 and 24.04), applies the task, verifies the result, and tears everything down. No manual `source` or `DOCKER_HOST` needed. |
+| `just converge` | Creates the containers **and** applies the task, then leaves them running so you can inspect them. Use this before logging in. |
+| `just login ubuntu-26` | Shells into the Ubuntu 26.04 container (the default). |
+| `just login ubuntu-24` | Shells into the Ubuntu 24.04 container. |
+| `just destroy` | Tears down all test containers — Molecule's containers plus any leftover manual ones. |
 
-# Editing this README
+> **Tip:** To poke at a live container, run `just converge` first, then
+> `just login ubuntu-26`. Running `just login` on its own gives you a fresh,
+> empty container where the task hasn't been applied yet.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Scope & limitations
 
-## Suggestions for a good README
+This is a proof of concept. Molecule verifies that the config file is
+written correctly and idempotently. The following are not yet validated and
+should be confirmed on a real host before production use:
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+- Live kernel application — Docker makes `/proc/sys/net/ipv4/ip_forward` read-only without `--privileged` / `--sysctl`, so the running-kernel value is not exercised here. Validate `sysctl -p` behavior on a real Ubuntu 26 VM.
+- `become` path — Molecule's containers run as root, so the `become: true` in the production playbook isn't exercised. Confirm `become`/`sudo` works on real hosts.
+- Real inventory — tests use Molecule's own inventory, not the production `hosts.yml`.
 
 ## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- [ ] Convert the playbook into a reusable Ansible role
+- [ ] Validate live kernal application on a real Ubuntu 26.04 host
