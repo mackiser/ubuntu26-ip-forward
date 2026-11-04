@@ -1,6 +1,6 @@
 ---
 - name: Enable IPv4 forwarding on Ubuntu 26 hosts
-  hosts: test_network
+  hosts: project_network
   become: true
   tasks:
     - name: Load the shared forwarding tasks
