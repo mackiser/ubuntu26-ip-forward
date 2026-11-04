@@ -23,3 +23,10 @@ def test_ip_forward_conf(host):
         assert f.contains("net.ipv4.ip_forward = 1")
     else:
         assert not f.exists, "99-forwarding.conf must NOT exist on non-Ubuntu-26"
+
+
+def test_runtime_forwarding(host):
+    major = _ubuntu_major(host)
+    if major == "26":
+        s = host.sysctl("net.ipv4.ip_forward")
+        assert s == 1, "kernel should have ip_forward enabled on Ubuntu 26"

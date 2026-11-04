@@ -2,3 +2,8 @@
 sysctl_forward_name: net.ipv4.ip_forward
 sysctl_forward_value: "1"
 sysctl_forward_path: /etc/sysctl.d/99-forwarding.conf
+
+# When true, also apply the setting to the running kernel immediately
+# (via ansible.posix.sysctl) instead of waiting for a reboot.
+# Default false keeps the behavior faithful to the original copy approach
+sysctl_forward_apply_live: false

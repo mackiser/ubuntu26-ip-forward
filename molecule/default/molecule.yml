@@ -6,6 +6,8 @@ platforms:
     image: ubuntu:26.04
     dockerfile: Dockerfile.26
     command: sleep infinity
+    sysctls:
+      net.ipv4.ip_forward: 0      # makes the kernal param writable so sysctl-set succeeds
   - name: ubuntu-24
     image: ubuntu:24.04
     dockerfile: Dockerfile.24

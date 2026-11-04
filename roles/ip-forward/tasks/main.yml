@@ -11,3 +11,17 @@
     - ansible_facts['os_family'] | default('') == 'Debian'
     - ansible_facts['distribution'] | default('') == 'Ubuntu'
     - ansible_facts['distribution_major_version'] | default('0') == '26'
+    - not sysctl_forward_apply_live
+
+- name: Enable net.ipv4.ip_forward on the running kernel immediately (Ubuntu 26 only)
+  ansible.posix.sysctl:
+    name: "{{ sysctl_forward_name }}"
+    value: "{{ sysctl_forward_value }}"
+    sysctl_file: "{{ sysctl_forward_path }}"
+    state: present
+    sysctl_set: true        # apply just this key to the running kernel now
+  when:
+    - ansible_facts['os_family'] | default('') == 'Debian'
+    - ansible_facts['distribution'] | default('') == 'Ubuntu'
+    - ansible_facts['distribution_major_version'] | default('0') == '26'
+    - sysctl_forward_apply_live
