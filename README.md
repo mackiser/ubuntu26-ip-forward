@@ -12,9 +12,6 @@ self-contained Ansible task that writes `/etc/sysctl.d/99-forwarding.conf` to
 enable IP forwarding — but **only on Ubuntu 26.04**, so it's a no-op everywhere
 else.
 
-This is primarily intended for "project networks" that run nested tunnels and
-require `ip_forward` to function.
-
 ## How it works
 
 The role's task uses `ansible.builtin.copy` to write the sysctl drop-in file,
@@ -113,24 +110,6 @@ workflow. Run `just --list` to see everything, or use one of these:
 > **Tip:** To poke at a live container, run `just converge` first, then
 > `just login ubuntu-26`. Running `just login` on its own gives you a fresh,
 > empty container where the task hasn't been applied yet.
-
-## Scope & limitations
-
-This is a proof of concept. Molecule verifies that the config file is written
-correctly and idempotently. The following are not yet validated and should be
-confirmed on a real host before production use:
-
-- `become` path — Molecule's containers run as root, so the `become: true` in
-  the production playbook isn't exercised. Confirm `become`/`sudo` works on real
-  hosts.
-- Real inventory — tests use Molecule's own inventory, not the production
-  `hosts.yml`.
-
-> **Verified on a real Ubuntu 26.04 host:** writing `/etc/sysctl.d/99-forwarding.conf`
-> via the playbook, then `sudo sysctl -p`, applies `net.ipv4.ip_forward = 1` to
-> the running kernel. The file-based approach also persists across reboot. This
-> run also confirmed the `become: true` privilege-escalation path works on a real
-> host — something the root-run Molecule containers couldn't exercise.
 
 ## Roadmap
 - [x] Convert the playbook into a reusable Ansible role
