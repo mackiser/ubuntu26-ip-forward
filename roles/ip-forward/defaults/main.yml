@@ -1,0 +1,4 @@
+---
+sysctl_forward_name: net.ipv4.ip_forward
+sysctl_forward_value: "1"
+sysctl_forward_path: /etc/sysctl.d/99-forwarding.conf

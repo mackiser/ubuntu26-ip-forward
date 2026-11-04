@@ -17,8 +17,8 @@ require `ip_forward` to function.
 
 ## How it works
 
-The task uses `ansible.builtin.copy` to write the sysctl drop-in file, guarded
-by a `when:` clause that checks the gathered Ansible facts:
+The role's task uses `ansible.builtin.copy` to write the sysctl drop-in file,
+guarded by a `when:` clause that checks the gathered Ansible facts:
 
 ```yaml
 when:
@@ -27,12 +27,32 @@ when:
   - ansible_facts['distribution_major_version'] == '26'
 ```
 - The file is written to `/etc/sysctl.d/99-forwarding.conf` -- the `99-` prefix ensures it's applied last, overriding earlier drop-ins.
-- The task is idempotent - `copy` only rewrites thefile when content changes.
-- On any non-Ubuntu-26 host the task is skipped
+- The task is idempotent - `copy` only rewrites the file when content changes.
+- On any non-Ubuntu-26 host the task is skipped.
 
 > Note: This writes the persistent config file only. It does not apply the
 > setting to the running kernel (that requires sysctl -p or a reboot). This
 > matches the original echo | tee approach it replaces.
+
+## Repository Layout
+
+```
+ubuntu26-ip-forward/
+├── ip-forward.yml                # playbook: applies the ip-forward role to project_network
+├── roles/
+│   └── ip-forward/
+│       ├── tasks/
+│       │   └── main.yml          # the gated task (Ubuntu 26 only)
+│       ├── defaults/
+│       │   └── main.yml          # sysctl name/value/path
+│       └── meta/
+│           └── main.yml          # role metadata
+├── molecule/
+│   └── default/                  # converge applied the role; two platforms (26 + 24)
+├── Justfile
+├── README.md
+└── .gitignore
+```
 
 ## Quickstart
 
@@ -63,7 +83,7 @@ to both, asserts the correct end state on each, then tears everything down.
 |---------------|------------------------------------------|----------------|
 | `converge`    | task `changed` (file written)            | task `skipped` |
 | `idempotence` | re-run reports `changed: 0`              | --             |
-| `verify`      | fil exists, mode `0644`, content correct | file absent    |
+| `verify`      | file exists, mode `0644`, content correct | file absent    |
 
 ## Manual verification (optional)
 
@@ -96,16 +116,24 @@ workflow. Run `just --list` to see everything, or use one of these:
 
 ## Scope & limitations
 
-This is a proof of concept. Molecule verifies that the config file is
-written correctly and idempotently. The following are not yet validated and
-should be confirmed on a real host before production use:
+This is a proof of concept. Molecule verifies that the config file is written
+correctly and idempotently. The following are not yet validated and should be
+confirmed on a real host before production use:
 
-- Live kernel application — Docker makes `/proc/sys/net/ipv4/ip_forward` read-only without `--privileged` / `--sysctl`, so the running-kernel value is not exercised here. Validate `sysctl -p` behavior on a real Ubuntu 26 VM.
-- `become` path — Molecule's containers run as root, so the `become: true` in the production playbook isn't exercised. Confirm `become`/`sudo` works on real hosts.
-- Real inventory — tests use Molecule's own inventory, not the production `hosts.yml`.
+- `become` path — Molecule's containers run as root, so the `become: true` in
+  the production playbook isn't exercised. Confirm `become`/`sudo` works on real
+  hosts.
+- Real inventory — tests use Molecule's own inventory, not the production
+  `hosts.yml`.
+
+> **Verified on a real Ubuntu 26.04 host:** writing `/etc/sysctl.d/99-forwarding.conf`
+> via the playbook, then `sudo sysctl -p`, applies `net.ipv4.ip_forward = 1` to
+> the running kernel. The file-based approach also persists across reboot. This
+> run also confirmed the `become: true` privilege-escalation path works on a real
+> host — something the root-run Molecule containers couldn't exercise.
 
 ## Roadmap
-- [ ] Convert the playbook into a reusable Ansible role
+- [x] Convert the playbook into a reusable Ansible role
 - [x] Validate live kernal application on a real Ubuntu 26.04 host
 
 > **Verified on a Ubuntu 26.04 host:** writing `/etc/sysctl.d/99-forwarding.conf`
