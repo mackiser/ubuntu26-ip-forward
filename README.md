@@ -136,7 +136,3 @@ workflow. Run `just --list` to see everything, or use one of these:
 - [x] Convert the playbook into a reusable Ansible role
 - [x] Validate live kernal application on a real Ubuntu 26.04 host
 - [x] Add opt-in live-application flag (`sysctl_forward_apply_live`)
-
-> **Verified on a Ubuntu 26.04 host:** writing `/etc/sysctl.d/99-forwarding.conf`
-> via the playbook, then `sudo sysctl -p`, applies `net.ipv4.ip_forward = 1` to the
-> running kernel. The file-based approach also persists on reboot.
