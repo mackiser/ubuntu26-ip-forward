@@ -31,6 +31,27 @@ when:
 > setting to the running kernel (that requires sysctl -p or a reboot). This
 > matches the original echo | tee approach it replaces.
 
+## Configuration
+
+The role is parameterized via `roles/ip-forward/defaults/main.yml`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `sysctl_forward_name` | `net.ipv4.ip_forward` | The sysctl directive to set |
+| `sysctl_forward_value` | `1` | The value to assign |
+| `sysctl_forward_path` | `/etc/sysctl.d/99-forwarding.conf` | Target drop-in file |
+| `sysctl_forward_apply_live` | `false` | If `true`, also apply the setting to the running kernel immediately (via `ansible.posix.sysctl`) instead of waiting for a reboot |
+
+By default the role only writes the config file, so the setting applies on the
+next reboot — faithful to the original `echo | tee` approach it replaces. Set
+`sysctl_forward_apply_live: true` (e.g. in `group_vars`) to also push the value
+into the running kernel right away:
+
+```yaml
+---
+sysctl_forward_apply_live: true
+```
+
 ## Repository Layout
 
 ```
@@ -114,6 +135,7 @@ workflow. Run `just --list` to see everything, or use one of these:
 ## Roadmap
 - [x] Convert the playbook into a reusable Ansible role
 - [x] Validate live kernal application on a real Ubuntu 26.04 host
+- [x] Add opt-in live-application flag (`sysctl_forward_apply_live`)
 
 > **Verified on a Ubuntu 26.04 host:** writing `/etc/sysctl.d/99-forwarding.conf`
 > via the playbook, then `sudo sysctl -p`, applies `net.ipv4.ip_forward = 1` to the
