@@ -1,9 +1,9 @@
 ---
 - name: Ensure /etc/sysctl.d/99-forwarding.conf enables ip_forward (Ubuntu 26 only)
   ansible.builtin.copy:
-    dest: /etc/sysctl.d/99-forwarding.conf
+    dest: "{{ sysctl_forward_path }}"
     content: |
-      net.ipv4.ip_forward = 1
+      {{ sysctl_forward_name }} = {{ sysctl_forward_value }}
     owner: root
     group: root
     mode: "0644"
