@@ -38,17 +38,17 @@ when:
 
 ```
 ubuntu26-ip-forward/
-├── ip-forward.yml # playbook: applies the ip-forward role to project_network
+├── ip-forward.yml                # playbook: applies the ip-forward role to project_network
 ├── roles/
 │   └── ip-forward/
 │       ├── tasks/
-│       │   └── main.yml # the gated task (Ubuntu 26 only)
+│       │   └── main.yml          # the gated task (Ubuntu 26 only)
 │       ├── defaults/
-│       │   └── main.yml # sysctl name/value/path
+│       │   └── main.yml          # sysctl name/value/path
 │       └── meta/
-│           └── main.yml # role metadata
+│           └── main.yml          # role metadata
 ├── molecule/
-│   └── default/ # converge applied the role; two platforms (26 + 24)
+│   └── default/                  # converge applied the role; two platforms (26 + 24)
 ├── Justfile
 ├── README.md
 └── .gitignore
